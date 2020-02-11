@@ -1,2 +1,4 @@
 .idea/*
+app.egg-info/*
+dist/*
 Pipfile.lock
