@@ -1,11 +1,11 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from app import kafka_beam as kf
+from app import rest_beam as re
 import signal
 import time
 import subprocess
-
-config = {"group_id": "andi"}
+import logging as log
 
 
 class MyTest:
@@ -20,18 +20,22 @@ class MyTest:
             pipeline = beam.Pipeline(
                 options=PipelineOptions(streaming=True, save_main_session=True)
             )
-            process_line = pipeline | "Reading month records" >> kf.KafkaBeam(config)
-            # process_line | 'Send to rest' >> re.RestBeam("10:10:10")
+            process_line = pipeline | "Reading records from kafka" >> kf.KafkaBeam(
+                {"group_id": "andi"}
+            )
+            process_line | "Send to rest endpoint" >> re.RestBeam(
+                {"url": "http://localhost:2020"}
+            )
 
             self.pipe_config = pipeline.run()
-            print("::: JOB DEPLOYED :::")
+            log.info("::: JOB DEPLOYED :::")
 
             while self.running_flag:
+                log.info("::: JOB RUNNING :::")
                 time.sleep(1)
-                print("::: JOB RUNNING :::")
 
         except Exception as e:
-            print("ERROR")
+            log.info("ERROR")
 
     def stop(self, signum, frame):
         self.running_flag = False
@@ -47,14 +51,19 @@ class MyTest:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
+
             for line in result.stdout.readlines():
                 line_as_txt = line.decode("utf-8").upper()
-                print(line_as_txt)
+                log.info(line_as_txt)
                 if "CANCELLED" in line_as_txt:
                     status_checking_flag = False
             time.sleep(1)
-        print("::: JOB TERMINATED :::")
 
+        log.info("::: JOB TERMINATED :::")
+
+
+log.basicConfig(level=log.INFO)
+logger = log.getLogger(__name__)
 
 andi = MyTest()
 andi.run_pipeline()
